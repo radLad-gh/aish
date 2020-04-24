@@ -1,20 +1,28 @@
+# Justice Smith
+# COP2930/Arup Guha
+# 4.20.20
+# Final Project
+
 import ast
 import sys
 import time
 
-COMMANDS = {'enter', 'examine', 'inventory', 'help', 'whereami', 'edit', 'exits'}
+COMMANDS = {'enter', 'examine', 'inventory', 'help', 'whereami', 'edit', 'exits', 'define', 'refresh', 'inspect'}
 
 LOCATIONS = {
     "banquet": {"maze"},
     "maze": {"grate"},
-    "grate": {"spider", "bull"},
-    "spider": {"mirrors", "grate"},
-    "mirrors": {"keyroom"},
+    "grate": {"spiderroom", "bull"},
+    "spiderroom": {"mirrorhall", "grate"},
+    "mirrorhall": {"keyroom"},
     "keyroom": {"grate"},
     "bull": {"home"},
     "home": {None},
 }
 
+# I switched the movement system from being based around checking what items were in the bag to qualify user for a room
+# to a series of counters that creates a predetermined adventure/not truly open world. It allows me to set item receipt/
+# discard to be dependent on visits to the rooms, which triggered different narrative based on visit count.
 visited = {
     "banquet": 0,
     "maze": 0,
@@ -22,154 +30,11 @@ visited = {
     "spiderroom": 0,
     "mirrorhall": 0,
     "keyroom": 0,
-    "keygrate": 0,
     "bull": 0,
     "home": 0,
 }
 
-short_descriptions = {
-    "locations": {
-        "banquet":
-            '''
-            You and your fellow kinsmen find yourselves in a magnificent hall set for 14, with
-            a packed second floor overlooking yours while you dine. As your compatriots
-            sit down, their hunger gets the best of them and they tear into the food. At the 
-            end of the hall, an open door marked 'maze' stands agape like the mouth of a massive 
-            ocean beast. The rest seem to pay no mind to the looming entrance. 
-            
-                And you, adventurer?
-            ''',
-        "maze":
-            '''
-            Your group wandered through the maze, most unaware of your mission, and fewer unaware of 
-            the string you had with you, slowly unfurling behind you all as you made your way through 
-            that accursed maze. Some ran off, all were afraid. 
-            
-            But that's what bravery is, isn't it? 
-            That despite fear, despite the odds being stacked against you, you rise to meet that enemy.
-            However big, however fearsome...
-            
-                Care to wander more, adventurer?
-            ''',
-        "grate":
-            '''
-            After hours and hours of wall-tracing, you arrive at a strange room with a grate in the 
-            center. There is a post at the doorway, and you tie off the clew that guided you this far.
-            You approach the grate and peer down into its dark depths. You sense the void that lies
-            behind the wrought-iron bars. You grab the bars and pull but the lock holds it fast. You look 
-            around and see but a single door before you. The design of the hall, the placement of the 
-            grate before the door, the placement of the door itself begs further inquiry. 
-            
-                Do you choose to go on, adventurer?
-            ''',
-        "spiderroom":
-            '''
-            The only door that leads forward is barely visible past the thick web that blocks your vision, not to 
-            mention the literal creeping carpet of spiders covering every surface. This is surely an intentional 
-            obstacle to whatever is beyond and, knowing by now that the Labyrinth was intentionally designed, you are
-            sure that there is something to help you and ultimately, your people, beyond that door. But as you step 
-            forward, the spiders too move forward, signalling your inability to pass. But how will you express that
-            you mean them no harm?
-            
-                What say ye, adventurer?
-            ''',
-        "mirrorhall":
-            '''
-            Emboldened by the semblance of immunity the clew offered, you grab and pull that gleaming brass door handle,
-            What you find behind the door is even wilder than the room you just overcame. 
-            
-            All you see is you. 
-            Hundreds of 'you's.
-            
-            As you slowly step forward, you realize that these are nothing like the handmirrors you've seen maidens use 
-            back home. These are monolithic versions, and too many of them to count. You consider using the pommel of 
-            your sword to simply beat through them all and pass but are sure the noise will call a, if not the, beast.
-            
-                Your move, adventurer.
-            
-            ''',
-        "keyroom":
-            '''
-            What you find before you is, quite simply, a workshop. Equipped with benches and tools of all kinds, this is
-            like any workshop you'd find at home. 
-            
-            Except for one thing. Every possible surface is covered in keys of all kinds. Metal keys of all types of 
-            metals and forms, wooden keys mixed among them.  You had neither the time nor the energy to pick the right 
-            one from the milieu so moved to the nearest chair, swept the keys off, and sat to think. You realize that 
-            you barely took time to notice anything about the lock affixing the grate door. Perhaps that would be a 
-            good place to start.
-            
-                Where to now, adventurer?
-                
-            ''',
-        "bull":
-            '''
-            You pull open the lock, remove it from the grate and carefully pull the grate open, revealing a hole with a
-            ladder. The darkness in the hole is thick, like the thickest air you've ever felt slipping over your skin, 
-            bringing with it hair-raising chills. As you pass down through the opening of the whole, it feels like the 
-            Earth itself is swallowing you whole. 
-            
-            After what seems like an eternity of hand-over-hand down the ladder, your foot touches ground. And just as 
-            it touches ground, a torch on a wall near you lights. The faint flickering glow of the torch plays along the
-            stone floor, revealing just steps from the bottom of the ladder that same beast that terrorized your people 
-            for so long, sleeping. 
-            
-            The Minotaur, head of a bull, body of a man, lies before you. 
-            
-            Though your journey was long, and your body is weary, you slowly unsheath your sword from its hiding place
-            and thrust it home through the evil Beast. As the Beast falls limp, the remaining torches on the wall 
-            illuminate, showing piles of bones stacked against the wall on every side, likely the bones of those who 
-            came before you but were unlucky enough to encounter the Bull-man while he was awake. You stand, wiping off 
-            your blade and preparing for the return home. No longer will your people be slaughtered by this beast. 
-            
-                Ready to go home, hero?
-            ''',
-        "home":
-            '''
-            You follow your string back through the maze, carrying nought but your sword, the head/neck of the Minotaur,
-            and what is left of your life. You manage to escape and take a vessel back to your home in Athens but forget
-            to raise a white sail to let Athens know of your victory and instead have the black sail you left with 
-            hoisted. Your father, seeing the black sail and thinking his son is lost,casts himself off the castle 
-            parapets into the sea below. Though you return as the new Ruler of Athens, Minotaur head trophy in tow, 
-            you do so at great cost, having lost both those who went with you as well as your own father, the King of 
-            Athens. 
-            ''',
-
-    },
-    "things": {
-        "clew":
-            '''
-            The ball is off the softest material you've ever felt. She tells you it's made from a special silk,
-            but says no more. You can tell that, despite the softness of feel, it is incredibly strong.
-            
-            "Sometimes finding your way back is harder than the journey itself. Hope this helps."
-            ''',
-        "key":
-            '''
-            The key, unassuming in appearance, hums slightly, imbued with the magic needed to unlock a magical
-            lock. It's a bit rusty, a bit heavy, but overall not noticeably different from the hundreds of other
-            keys you could have chosen. 
-            ''',
-        "bag":
-            '''
-            The bag given to you by the serving maid is leather, yet of a very high quality. Though you haven't seen
-            many examples of such, it seems to be a magical item of some kind. 
-            ''',
-        "note":
-            '''
-            The note has but one hand-written line:
-            
-                Keep to the wall.
-            ''',
-        "lock":
-            '''
-            You take the lock in your hand, noting its weight first, then its design. Heavy and minimalistic, the lock 
-            is efficient and effective. You feel a slight bump on the back, prompting you to turn the lock over. A 
-            small door sits on the back, with a point hinge holding it down. You slide the little door to the side on 
-            the back of the lock revealing a small sun engraved on it. 
-            '''
-    }
-}
+# Found these dictionaries to be a nice narrative holder, especially with the auto indents.
 long_descriptions = {
     "locations": {
         "banquet":
@@ -294,17 +159,197 @@ long_descriptions = {
             ''',
         "keyroom":
             '''
+            Knowing that there must be a way to find the right key, you persist in combing through the piles and
+            piles of keys. There seems to be no difference to any of them, really, as far as uniqueness. They're just...
+            plain old keys. Your eyes are swimming with keys, they're just blending together at this point. You've 
+            looked in drawers, on hooks, under papers, underfoot, overhead, and nothing. You looked for a way out but 
+            the only way in or out of this room appears to be the way you came in, through the mirror hall. As your hand
+            passes over what feels like the millionth key, you see it. 
             
+            A sun. 
+            
+            You fly toward it, not wanting to lose sight of it among the other nondescript keys around it. You're not 
+            even sure how you were able to spot it but the key has a tiny sun engraved on the head. Almost scratched on,
+            it appears to be fresh, as you can clearly distinguish the shiny metal from the scratched sun as newer than 
+            the age of the surrounding unscratched metal. You are sure this is the key. Now, to use it on the right 
+            lock. 
+            
+                Where to now, champion?
             ''',
         "bull":
             '''
+            Taking a look around the room in what little light you have, you see this place almost as a cell. It is 
+            cold, damp, simply a stone box with one way in and one way out. In fact, it seems almost reminiscent of the
+            dungeons you heard of that are used in France called oubliettes. In these dungeons, there is a steep slope 
+            down to a hole that connects the dungeon cell to the outside, creating a simple yet inescapable prison.
+            
+            As you stand there, in the flickering light of the torch, you wonder how you came to this moment. This 
+            beast, how did he come to be here? 
+                What is his story? 
+                    Is this true Justice? 
+                        Is this vengeance? 
+                            Is the bull even to blame? 
+                            
+            You don't know the answers to these and other questions but for the moment, you know that  your people are 
+            dying and that the Minotaur will surely kill you upon waking. With those two thoughts in mind, you know that
+            certain decisions need be made by those with not enough time.  
             
             ''',
         "home":
             '''
+            Home is...bittersweet. How can you celebrate knowing that your oversight caused the death of your father?
+            Or that dozens of young Athenian boys and girls had been sent to slaughter before you made it to the 
+            labyrinth to end the slaughter? These things and others turned the golds, whites, and purples of your 
+            celebratory return into muted grays. You wanted to be joyful, like your citizens, even to revel in your own 
+            victory, but alas, too much blood had been spilt in recent affairs for you to be ignorant of the loss of 
+            life. 
             
+            But for now, we drink and make merry. For the lives saved. 
             ''',
 
+    }
+}
+short_descriptions = {
+    "locations": {
+        "banquet":
+            '''
+            You and your fellow kinsmen find yourselves in a magnificent hall set for 14, with
+            a packed second floor overlooking yours while you dine. As your compatriots
+            sit down, their hunger gets the best of them and they tear into the food. At the 
+            end of the hall, an open door marked 'maze' stands agape like the mouth of a massive 
+            ocean beast. The rest seem to pay no mind to the looming entrance. 
+            
+                And you, adventurer?
+            ''',
+        "maze":
+            '''
+            Your group wandered through the maze, most unaware of your mission, and fewer unaware of 
+            the string you had with you, slowly unfurling behind you all as you made your way through 
+            that accursed maze. Some ran off, all were afraid. 
+            
+            But that's what bravery is, isn't it? 
+            That despite fear, despite the odds being stacked against you, you rise to meet that enemy.
+            However big, however fearsome...
+            
+                Care to wander more, adventurer?
+            ''',
+        "grate":
+            '''
+            After hours and hours of wall-tracing, you arrive at a strange room with a grate in the 
+            center. There is a post at the doorway, and you tie off the clew that guided you this far.
+            You approach the grate and peer down into its dark depths. You sense the void that lies
+            behind the wrought-iron bars. You grab the bars and pull but the lock holds it fast. You look 
+            around and see but a single door before you. The design of the hall, the placement of the 
+            grate before the door, the placement of the door itself begs further inquiry. 
+            
+                Do you choose to go on, adventurer?
+            ''',
+        "spiderroom":
+            '''
+            The only door that leads forward is barely visible past the thick web that blocks your vision, not to 
+            mention the literal creeping carpet of spiders covering every surface. This is surely an intentional 
+            obstacle to whatever is beyond and, knowing by now that the Labyrinth was intentionally designed, you are
+            sure that there is something to help you and ultimately, your people, beyond that door. But as you step 
+            forward, the spiders too move forward, signalling your inability to pass. But how will you express that
+            you mean them no harm?
+            
+                What say ye, adventurer?
+            ''',
+        "mirrorhall":
+            '''
+            Emboldened by the semblance of immunity the clew offered, you grab and pull that gleaming brass door handle,
+            What you find behind the door is even wilder than the room you just overcame. 
+            
+            All you see is you. 
+            Hundreds of 'you's.
+            
+            As you slowly step forward, you realize that these are nothing like the handmirrors you've seen maidens use 
+            back home. These are monolithic versions, and too many of them to count. You consider using the pommel of 
+            your sword to simply beat through them all and pass but are sure the noise will call a, if not the, beast.
+            
+                Your move, adventurer.
+            
+            ''',
+        "keyroom":
+            '''
+            What you find before you is, quite simply, a workshop. Equipped with benches and tools of all kinds, this is
+            like any workshop you'd find at home. 
+            
+            Except for one thing. Every possible surface is covered in keys of all kinds. Metal keys of all types of 
+            metals and forms, wooden keys mixed among them.  You had neither the time nor the energy to pick the right 
+            one from the milieu so moved to the nearest chair, swept the keys off, and sat to think. You realize that 
+            you barely took time to notice anything about the lock affixing the grate door. Perhaps that would be a 
+            good place to start.
+            
+                Where to now, adventurer?
+                
+            ''',
+        "bull":
+            '''
+            You pull open the lock, remove it from the grate and carefully pull the grate open, revealing a hole with a
+            ladder. The darkness in the hole is thick, like the thickest air you've ever felt slipping over your skin, 
+            bringing with it hair-raising chills. As you pass down through the opening of the whole, it feels like the 
+            Earth itself is swallowing you whole. 
+            
+            After what seems like an eternity of hand-over-hand down the ladder, your foot touches ground. And just as 
+            it touches ground, a torch on a wall near you lights. The faint flickering glow of the torch plays along the
+            stone floor, revealing just steps from the bottom of the ladder that same beast that terrorized your people 
+            for so long, sleeping. 
+            
+            The Minotaur, head of a bull, body of a man, lies before you. 
+            
+            Though your journey was long, and your body is weary, you slowly unsheath your sword from its hiding place
+            and thrust it home through the evil Beast. As the Beast falls limp, the remaining torches on the wall 
+            illuminate, showing piles of bones stacked against the wall on every side, likely the bones of those who 
+            came before you but were unlucky enough to encounter the Bull-man while he was awake. You stand, wiping off 
+            your blade and preparing for the return home. No longer will your people be slaughtered by this beast. 
+            
+                Ready to go home, hero?
+            ''',
+        "home":
+            '''
+            You follow your string back through the maze, carrying nought but your sword, the head/neck of the Minotaur,
+            and what is left of your life. You manage to escape and take a vessel back to your home in Athens but forget
+            to raise a white sail to let Athens know of your victory and instead have the black sail you left with 
+            hoisted. Your father, seeing the black sail and thinking his son is lost,casts himself off the castle 
+            parapets into the sea below. Though you return as the new Ruler of Athens, Minotaur head trophy in tow, 
+            you do so at great cost, having lost both those who went with you as well as your own father, the King of 
+            Athens. 
+            ''',
+
+    },
+    "things": {
+        "clew":
+            '''
+            The ball is of the softest material you've ever felt. She tells you it's made from a special silk,
+            but says no more. You can tell that, despite the softness of feel, it is incredibly strong.
+            
+            "Sometimes finding your way back is harder than the journey itself. Hope this helps."
+            ''',
+        "key":
+            '''
+            The key, unassuming in appearance, hums slightly, imbued with the magic needed to unlock a magical
+            lock. It's a bit rusty, a bit heavy, but overall not noticeably different from the hundreds of other
+            keys you could have chosen. 
+            ''',
+        "bag":
+            '''
+            The bag given to you by the serving maid is leather, yet of a very high quality. Though you haven't seen
+            many examples of such, it seems to be a magical item of some kind. 
+            ''',
+        "note":
+            '''
+            The note has but one hand-written line:
+            
+                Keep to the wall.
+            ''',
+        "lock":
+            '''
+            You take the lock in your hand, noting its weight first, then its design. Heavy and minimalistic, the lock 
+            is efficient and effective. You feel a slight bump on the back, prompting you to turn the lock over. A 
+            small door sits on the back, with a point hinge holding it down. You slide the little door to the side on 
+            the back of the lock revealing a small sun engraved on it. 
+            '''
     }
 }
 alt_descriptions = {
@@ -366,41 +411,54 @@ alt_descriptions = {
             ''',
         "grateWkey":
             '''
-            Returning to the 
+            Returning to the grate room, key in hand, you start to feel a swell of anticipatory energy. This is it.
+            The moment on which your kingdom and countrymen are resting their hopes. You take out the key and fit it 
+            to the lock. Despite the rust and ruggedness, there is clearly magic afoot. The locks are too smooth,
+            the rooms too carefully crafted, to be accidental. There is surely a creator, a hand, someone behind the 
+            curtain, directing the show. As you turn the key, the click of the lock seems to echo throughout the room,
+            thunderously loud. The lock springs open.
+            
+                Into the deep, hero? 
             ''',
     }
 }
 
 
+# pulls needed info from txt file or creates game data for new player
 def menu():
     print("-" * 30, "\n")
     print("Welcome to The Labyrinth, adventurer, a text-based adventure maze game by Justice Smith")
     print("-" * 30, "\n")
     print("\nFeel free to type 'help' at any time to check out the reference manual. Enjoy")
     print("-" * 30, "\n")
-
     print("-" * 30, "\n")
     print("MENU: (Choose a number from the following.)\n")
     print("\t1. New Game\n\t2. Load Game\n\t3. About")
 
-    options = {1, 2, 3}
-    choice = int(input("> "))
-
-    while choice not in options:
-        choice = int(input("Choose either 1, 2, or 3 from the menu options.\n> "))
-
+    # foolproof* menu input
+    option = (1, 2, 3)
+    choice = 0
+    while choice not in option:
+        while True:
+            try:
+                choice = int(input("\nPlease enter 1, 2, or 3:\n> "))
+                break
+            except ValueError:
+                choice = int(input("\nEnter only 1, 2, or 3:\n> "))
+                break
     if choice == 1:
         player_data = {
             "name": None,
             "inventory": [],
             "current_loc": "banquet",
             "turns": 0,
-            "game_over": False,
-            "alive": True,
+            "game_over": 0,
+            "alive": 1,
         }
         name = input("Hello! It seems this is your first time playing this game. What is your name?\n> ")
         print(f"Welcome, {name}.")
         player_data["name"] = name
+        save(player_data)
         return player_data
 
     elif choice == 2:
@@ -409,30 +467,36 @@ def menu():
 
     elif choice == 3:
         print("This game is cool. Tell your friends or you're a n00b4lyf3.\n")
-        choice = input("Enter quit to leave the about page.\n> ")
-        if choice == "quit":
-            menu()
+        input("Press enter to return to the menu.")
+        menu()
     else:
         print("That's not a valid response. Try 1, 2, or 3.")
 
 
+# This is a pseudo-interface. You can 'initialize' it and terminate it, refreshing state.
 def help_util(player_data):
     """
     This utility function returns a list of commands that can be implemented.
     """
     print("Hello. n00b. This is the help office. This is like passing your big brother the controller.\n"
-          "Effective, but at what cost? Anyway, there are like... a LOT of commands you can do. Here they are:\n"
+          "Effective, but at what cost? Anyway, there are like... a LOT of commands you can do.\n"
+          "Note that \"> define <command>\" can be used to provide further information on any of the commands.\n"
+          "Here they are:\n"
           f"\n\t{COMMANDS}\n")
+    # No penalty for asking for help
+    if player_data["turns"] == 0:
+        pass
+    else:
+        player_data["turns"] -= 1
 
-    input("Press enter to continue.")
-    start(player_data["current_loc"], player_data)
 
-
+# This is my getter. Care was taken in being surgical about the selection of functions called in this section.
 def get_action(player_data):
     single_kw = ('inventory', 'help', 'whereami', 'edit', 'exits', 'refresh')
     multi_kw = ('define', 'enter', 'examine', 'inspect')
     while True:
-        command = input("\n> ").lower().split()
+        turns = player_data["turns"]
+        command = input(f"Turns taken:{turns}\n\n\t> ").lower().split()
         if command:
             if command[0] == 'save':
                 save(player_data)
@@ -451,7 +515,7 @@ def get_action(player_data):
                         print("I'm sorry, I don't recognize that direction.")
                 elif command[0] == 'examine':
                     if command[1] in long_descriptions["locations"]:
-                        return command, player_data
+                        return command
                     else:
                         print("Examine what?")
                 elif command[0] == 'inspect':
@@ -459,6 +523,8 @@ def get_action(player_data):
                         return command
                     else:
                         print("Inspect what?")
+                else:
+                    print("That is not a command string this game understands. Enter 'help' for more information.")
             elif len(command) == 1:
                 if command[0] == 'inventory':
                     return command
@@ -474,10 +540,13 @@ def get_action(player_data):
                     return command
                 elif command[0] == 'refresh':
                     return command
+                else:
+                    print("That is not a command string this game understands. Enter 'help' for more information.")
             else:
-                print("I don't understand that instruction. Try another.")
+                print("That is not a command string this game understands. Enter 'help' for more information.")
 
 
+# Convenient utility for user to change the character name should a typo be typed.
 def change_name(player_data):
     """
     This function allow you to change your name in the unfortunate incident that you
@@ -489,6 +558,7 @@ def change_name(player_data):
     print(f"Your name has now been set to {new_name}.")
 
 
+# User-level utility for changing location
 def enter(destination, player_data):
     """
     This is the command that directs the changing of location.
@@ -498,33 +568,98 @@ def enter(destination, player_data):
 
     to go to any of the possible rooms connected to your current location.
     """
-
+    # Stopping bad destinations early
     if destination in LOCATIONS[player_data["current_loc"]]:
-        start(destination, player_data)
-        return destination
+        new_loc = start(destination, player_data)
+        return new_loc
 
     else:
         print("You can't go that way.")
+        return player_data["current_loc"]
 
 
+# The heavy lifting behind 'enter' and some other use(menu)
 def start(location, player_data):
     if location in LOCATIONS.keys():
-        if location in short_descriptions["locations"]:
-            if location == 'maze' and 'clew' not in player_data["inventory"]:
-                print(alt_descriptions["locations"]["maze"])
-                input("You enter the void. Press enter to continue.")
-                player_data["game_over"] = 1
-                player_data["alive"] = 0
-            elif location == 'grate' and 'key' in player_data["inventory"]:
-                print(alt_descriptions["locations"]["grate"])
-            else:
+        # A classic must-have: the death sequence.
+        if location == 'maze' and 'clew' not in player_data["inventory"]:
+            print(alt_descriptions["locations"]["maze"])
+            input("You enter the void. Press enter to continue.")
+            player_data["game_over"] = 1
+            player_data["alive"] = 0
+        elif location == 'grate':
+            # Switched to visit-counter based movement function.
+            if visited["grate"] == 0:
                 print(short_descriptions["locations"][location])
                 visited[location] += 1
-                print(visited)
+                remove('clew', player_data)
+                return location
+            elif visited["grate"] == 1:
+                print(alt_descriptions["locations"]["grate4clew"])
+                visited[location] += 1
+                keep('clew', player_data)
+                return location
+            elif visited["grate"] == 2 and visited["keyroom"]  == 1:
+                print(short_descriptions["locations"][location])
+                print(short_descriptions["things"]["lock"])
+                LOCATIONS["grate"] = {'keyroom', 'bull'}
+                visited[location] += 1
+                return location
+            elif visited["grate"] >= 3 and visited["keyroom"] >= 2:
+                print(alt_descriptions["locations"]["grateWkey"])
+                visited[location] += 1
+                remove('key', player_data)
+                return location
+            else:
+                print("What are you doing in here again? Scram!\n\n You are sent scurrying back to your last room.")
+                refresh(player_data)
+                # Force-resets the player location for errors
+                return player_data["current_loc"]
+        elif location == 'spiderroom':
+            if visited["spiderroom"] == 0:
+                print(short_descriptions["locations"][location])
+                visited[location] += 1
+                return location
+            elif visited["spiderroom"] == 1:
+                print(alt_descriptions["locations"]["spiderroom"])
+                visited[location] += 1
+                return location
+            else:
+                print("Nothing more to see here, no matter how many eyes.")
+                return player_data["current_loc"]
+        elif location == 'mirrorhall' and visited["grate"] == 1:
+            print("You couldn't possibly get through all those spiders.")
+            return player_data["current_loc"]
+        elif location == 'keyroom':
+            if visited["keyroom"] == 0:
+                print(short_descriptions["locations"][location])
+                visited[location] += 1
+                return location
+            elif visited["keyroom"] == 1:
+                print(long_descriptions["locations"][location])
+                visited[location] += 1
+                keep('key', player_data)
+                return location
+            else:
+                print("What else could you want in there?")
+                return player_data["current_loc"]
+        elif location == 'bull' and visited["keyroom"] < 2:
+            print("The lock is too strong. You cannot enter.")
+            return player_data["current_loc"]
+        elif location == 'home':
+            print(short_descriptions["locations"][location])
+            player_data["game_over"] = 1
+            return location
+        # All but the above exceptions
+        else:
+            print(short_descriptions["locations"][location])
+            visited[location] += 1
+            return location
     else:
         print("That's not a place you can go. Try somewhere else.")
 
 
+# Location-specific
 def examine(location, player_data):
     """
     This function is specifically meant for calling descriptions of the player's current location.
@@ -535,22 +670,21 @@ def examine(location, player_data):
     to get a description of your current location and trigger events that may be hidden past a perfunctory room
     examination.
     """
-
-    if location in LOCATIONS.keys() and player_data["current_loc"] == location:
+    # You can only examine where you are right now because examine triggers other functions.
+    if location in LOCATIONS and player_data["current_loc"] == location:
         if location in long_descriptions["locations"]:
             print(long_descriptions["locations"][location])
             if location == 'banquet':
                 keep('clew', player_data)
-            elif location == 'maze':
-                remove('clew', player_data)
-            elif location == 'keyroom' and visited["grate"] >= 2:
-                keep('key', player_data)
-    elif location in long_descriptions["things"]:
-        print("Try keyword 'inspect' instead for items.")
+        elif location in long_descriptions["things"]:
+            print("Try keyword 'inspect' instead for items.")
+        else:
+            print(f"There's not much more to the {location} than a name. Try somewhere else.")
     else:
-        print(f"There's not much more to the {location} than a name. Try somewhere else.")
+        print("You can't really examine somewhere you aren't, can you?")
 
 
+# Item-specific
 def inspect(item, player_data):
     """
     This function is specifically meant for calling descriptions of an item you currently possesses.
@@ -562,25 +696,31 @@ def inspect(item, player_data):
     """
 
     if item in player_data["inventory"]:
-        print(short_descriptions["things"][item])
+        if item == 'key' and visited["keyroom"] >= 1:
+            print(short_descriptions["things"][item])
+        else:
+            print(short_descriptions["things"][item])
     elif item == 'bag':
-        print(short_descriptions["things"]["bag"])
-    elif player_data["current_loc"] == 'grate' and item == 'lock':
-        print(short_descriptions["things"]["lock"])
+        print(short_descriptions["things"][item])
+    elif item == 'lock' and player_data["current_loc"] == 'grate':
+        print(short_descriptions["things"][item])
     elif item in short_descriptions["locations"]:
         print("Try keyword 'examine' instead for locations.")
     else:
         print(f"What {item} are you even talking about?")
 
 
+# Hidden utility for adjusting player inventory
 def keep(thing, player_data):
     player_data["inventory"].append(thing)
 
 
+# Hidden utility for adjusting player inventory
 def remove(thing, player_data):
     player_data["inventory"].remove(thing)
 
 
+# Convenient tool for player(thinking about auto printing this under turn count)
 def whereami(player_data):
     """
     This function is a tool for the player to recall their current location, for purposes of using that name
@@ -609,6 +749,7 @@ def exits(player_data):
     print(f"Hm. It seems the exits available to you are: {exit_options}")
 
 
+# Fancy lil thang to print handy docstrings(I pretty much used development of this to learn docstrings)
 def define():
     """
     I made this function special for you just so I could put documentation
@@ -631,6 +772,7 @@ def stats(player_data):
     print(player_data)
 
 
+# Streamlined, non variable affecting version of start. Very useful for saving 'visited[""] +=' lines
 def refresh(player_data):
     """
     This function provides the player the ability to reprint the current room information.
@@ -641,64 +783,62 @@ def refresh(player_data):
     to print to screen the narrative for the current area.
     """
     cur_loc = player_data["current_loc"]
-    refresh_resp = input(f"Would you like to reprint your current {cur_loc} narrative?\n> ").strip().lower()
-    if refresh_resp == 'yes':
-        visited[player_data["current_loc"]] -= 1
-        start(player_data["current_loc"], player_data)
-    elif refresh_resp == 'no':
-        print("Well then why did you use the refresh function?")
-    else:
-        print("This one's just a yes/no question. Imagine how you'll fare against the Minotaur.")
+    print(short_descriptions["locations"][cur_loc])
 
 
+# Command sorting
 def perform_action(command, player_data):
-    if len(command) == 2:
-        if command[0] == 'enter':
-            player_data["current_loc"] = enter(command[1], player_data)
-        elif command[0] == 'inspect':
-            inspect(command[1], player_data)
-        elif command[0] == 'examine':
-            examine(command[1], player_data)
-        elif command[0] == 'define':
-            if command[1] == 'help':
-                print(help_util.__doc__)
-            elif command[1] == 'edit':
-                print(change_name.__doc__)
-            elif command[1] == 'save':
-                print(save.__doc__)
-            elif command[1] == 'enter':
-                print(enter.__doc__)
-            elif command[1] == 'examine':
-                print(examine.__doc__)
-            elif command[1] == 'inventory':
-                print(inventory.__doc__)
-            elif command[1] == 'define':
-                print(define.__doc__)
-            elif command[1] == 'refresh':
-                print(refresh.__doc__)
-    elif len(command) == 1:
-        if command[0] == 'inventory':
-            inventory(player_data)
-        elif command[0] == 'help':
-            help_util(player_data)
-        elif command[0] == 'whereami':
-            whereami(player_data)
-        elif command[0] == 'edit':
-            change_name(player_data)
-        elif command[0] == 'keep':
-            player_data["inventory"].append(command[1])
-        elif command[0] == 'remove':
-            player_data["inventory"].remove(command[1])
-        elif command[0] == 'exits':
-            exits(player_data)
-        elif command[0] == 'stats':
-            stats(player_data)
-        elif command[0] == 'refresh':
-            refresh(player_data)
+    # print(command); this is a diag line to split the engine.
+    if command[0] == 'enter':
+        player_data["current_loc"] = enter(command[1], player_data)
+    elif command[0] == 'inspect':
+        inspect(command[1], player_data)
+    elif command[0] == 'examine':
+        examine(command[1], player_data)
+    elif command[0] == 'define':
+        if command[1] == 'help':
+            print(help_util.__doc__)
+        elif command[1] == 'edit':
+            print(change_name.__doc__)
+        elif command[1] == 'save':
+            print(save.__doc__)
+        elif command[1] == 'enter':
+            print(enter.__doc__)
+        elif command[1] == 'examine':
+            print(examine.__doc__)
+        elif command[1] == 'inventory':
+            print(inventory.__doc__)
+        elif command[1] == 'define':
+            print(define.__doc__)
+        elif command[1] == 'refresh':
+            print(refresh.__doc__)
+        elif command[1] == 'inspect':
+            print(inspect.__doc__)
+        elif command[1] == 'exits':
+            print(exits.__doc__)
+    elif command[0] == 'inventory':
+        inventory(player_data)
+    elif command[0] == 'help':
+        help_util(player_data)
+    elif command[0] == 'whereami':
+        whereami(player_data)
+    elif command[0] == 'edit':
+        change_name(player_data)
+    elif command[0] == 'keep':
+        player_data["inventory"].append(command[1])
+    elif command[0] == 'remove':
+        player_data["inventory"].remove(command[1])
+    elif command[0] == 'exits':
+        exits(player_data)
+    elif command[0] == 'stats':
+        stats(player_data)
+    elif command[0] == 'refresh':
+        refresh(player_data)
     else:
         print("Command not implemented.")
 
 
+# Could be more useful in game expansion; note use of ast.literal, it's pretty handy
 def save(player_data):
     """
     This function saves the current gamestate, including player name, inventory contents and current room.
@@ -721,10 +861,10 @@ def pull_data():
     return pulled_data
 
 
-def death(player_data):
+def death():
     print("Sadly, you died. So sad. I'm crying.\n")
     options = ["Y", "N"]
-    choice = input("Would you like to restart from your last save point?\n(Y/N)> ").strip().lower()
+    choice = input("Would you like to restart ?\n(Y/N)> ").strip().lower()
     if choice == "y":
         print("Alright, let's try this again.")
         for i in range(50):
@@ -736,9 +876,11 @@ def death(player_data):
             print("~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
                   "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~")
             time.sleep(.15)
-        player_data["turns"] = 0
-        visited[player_data["current_loc"]] -= 1
-        play(player_data=pull_data())
+        # Resetting room visit counts
+        for k in visited:
+            visited[k] = 0
+
+        game()
 
     elif choice == "n":
         print("Alright. Well, hope to see you soon! Goodbye.")
@@ -748,6 +890,14 @@ def death(player_data):
 
 
 def inventory(player_data):
+    """
+    This function shows the contents of the player's inventory.
+    Your command should be of the form:
+
+        > inventory
+
+    to get a single line output showing your current inventory.
+    """
     i = player_data["inventory"]
     print(f"In your magical bag, you have: \n{i}.")
 
@@ -759,21 +909,26 @@ def play(player_data):
     start(location, player_data)
 
     while not game_over:
-        command = get_action(player_data)
-        perform_action(command, player_data)
-        player_data["turns"] += 1
-        if player_data["game_over"] == 1:
-            game_over = True
-        if player_data["alive"] == 0:
-            alive = False
+        try:
+            command = get_action(player_data)
+            perform_action(command, player_data)
+            player_data["turns"] += 1
+            print(visited)
+            if player_data["game_over"] == 1:
+                game_over = True
+            if player_data["alive"] == 0:
+                alive = False
+        except ValueError:
+            print("Ooh, that's a nasty error. Let's try to avoid that one.")
     if not alive:
-        death(player_data)
+        death()
     else:
         turns = player_data["turns"]
         print(f"Congrats, you beat the game! It took you {turns} turns.")
 
 
 def game():
+    # I split the game into two parts: data-pulling and game execution with data pulled.
     player_data = menu()
     play(player_data)
 
