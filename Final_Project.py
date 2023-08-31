@@ -913,7 +913,7 @@ def play(player_data):
             command = get_action(player_data)
             perform_action(command, player_data)
             player_data["turns"] += 1
-            print(visited)
+            # print(visited)
             if player_data["game_over"] == 1:
                 game_over = True
             if player_data["alive"] == 0:
